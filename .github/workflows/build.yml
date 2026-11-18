@@ -1,0 +1,60 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install .NET 10
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: src/MajoSolAetherMap/packages.lock.json
+
+      - name: Download Dalamud
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri https://goatcorp.github.io/dalamud-distrib/latest.zip -OutFile dalamud.zip
+          Expand-Archive -Force dalamud.zip "$env:AppData\XIVLauncher\addon\Hooks\dev"
+
+      - name: Restore
+        run: dotnet restore MajoSolAetherMap.slnx --locked-mode
+
+      - name: Verify formatting
+        run: dotnet format MajoSolAetherMap.slnx --verify-no-changes --no-restore
+
+      - name: Build Release
+        run: dotnet build MajoSolAetherMap.slnx --configuration Release --no-restore
+
+      - name: Validate package
+        shell: pwsh
+        run: |
+          $manifest = Get-Content `
+            -LiteralPath ./src/MajoSolAetherMap/bin/x64/Release/MajoSolAetherMap/MajoSolAetherMap.json `
+            -Raw | ConvertFrom-Json
+          ./scripts/Test-ReleasePackage.ps1 `
+            -ZipPath ./src/MajoSolAetherMap/bin/x64/Release/MajoSolAetherMap/latest.zip `
+            -ExpectedVersion $manifest.AssemblyVersion `
+            -SourceArtworkPath ./assets/majo-and-sol.png
+
+      - name: Store package
+        uses: actions/upload-artifact@v4
+        with:
+          name: MajoSolAetherMap
+          path: src/MajoSolAetherMap/bin/x64/Release/MajoSolAetherMap/latest.zip
+          if-no-files-found: error
+          retention-days: 7

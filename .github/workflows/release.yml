@@ -1,0 +1,90 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Install .NET 10
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: src/MajoSolAetherMap/packages.lock.json
+
+      - name: Download Dalamud
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri https://goatcorp.github.io/dalamud-distrib/latest.zip -OutFile dalamud.zip
+          Expand-Archive -Force dalamud.zip "$env:AppData\XIVLauncher\addon\Hooks\dev"
+
+      - name: Restore
+        run: dotnet restore MajoSolAetherMap.slnx --locked-mode
+
+      - name: Verify formatting
+        run: dotnet format MajoSolAetherMap.slnx --verify-no-changes --no-restore
+
+      - name: Build Release
+        run: dotnet build MajoSolAetherMap.slnx --configuration Release --no-restore
+
+      - name: Prepare and validate release files
+        id: prepare
+        shell: pwsh
+        run: |
+          $manifestPath = './src/MajoSolAetherMap/bin/x64/Release/MajoSolAetherMap/MajoSolAetherMap.json'
+          $zipPath = './src/MajoSolAetherMap/bin/x64/Release/MajoSolAetherMap/latest.zip'
+          $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+          $version = [string]$manifest.AssemblyVersion
+          $lastUpdate = [long](git show -s --format=%ct $env:GITHUB_SHA)
+
+          New-Item -ItemType Directory -Path ./release -Force | Out-Null
+          ./scripts/New-PluginMaster.ps1 `
+            -ManifestPath $manifestPath `
+            -VersionTag $env:GITHUB_REF_NAME `
+            -LastUpdateEpoch $lastUpdate `
+            -OutputPath ./release/pluginmaster.json
+          ./scripts/Test-ReleasePackage.ps1 `
+            -ZipPath $zipPath `
+            -ExpectedVersion $version `
+            -SourceArtworkPath ./assets/majo-and-sol.png
+
+          $dllPath = './src/MajoSolAetherMap/bin/x64/Release/MajoSolAetherMap.dll'
+          $checksums = @(
+            "$( (Get-FileHash -Algorithm SHA256 -LiteralPath $dllPath).Hash )  MajoSolAetherMap.dll",
+            "$( (Get-FileHash -Algorithm SHA256 -LiteralPath $zipPath).Hash )  latest.zip",
+            "$( (Get-FileHash -Algorithm SHA256 -LiteralPath './assets/majo-and-sol.png').Hash )  assets/majo-and-sol.png"
+          )
+          $checksums | Set-Content -LiteralPath ./release/SHA256SUMS.txt -Encoding UTF8
+          Copy-Item -LiteralPath $zipPath -Destination ./release/latest.zip
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create $env:GITHUB_REF_NAME `
+            ./release/latest.zip `
+            ./release/pluginmaster.json `
+            ./release/SHA256SUMS.txt `
+            --verify-tag `
+            --generate-notes `
+            --title "Majo & Sol Aether Map ${{ steps.prepare.outputs.version }}"

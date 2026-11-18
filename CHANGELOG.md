@@ -10,6 +10,7 @@ All notable changes to Majo & Sol Aether Map are documented here.
 - Added a persistent zone selector for checking progress in other maps.
 - Added bilingual repository documentation, MIT license and publication checklist.
 - Added official DalamudPluginsD17 testing-manifest template.
+- Added a versioned custom Dalamud repository manifest and automated build/release workflows.
 - Expanded repository hygiene, safety and limitation documentation.
 
 ## [0.6.0.0] - 2026-11-18

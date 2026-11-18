@@ -33,15 +33,26 @@ Majo & Sol Aether Map is an unofficial community project. It is not affiliated w
 
 The official project cover is shown above. Additional in-game screenshots will be added only after privacy review; the capture checklist is documented in [`assets/screenshots/README.md`](assets/screenshots/README.md). No unvalidated or fabricated UI screenshots are presented.
 
-### Installation from GitHub Releases
+### Installation through the Custom Plugin Repository
 
 Until the plugin is accepted into the official Dalamud repository:
 
-1. Download `latest.zip` from the matching [GitHub Release](https://github.com/majonumo/MajoSolAetherMap/releases).
-2. Extract the archive to a permanent folder.
-3. Open `/xlsettings` in game.
-4. Under **Experimental > Dev Plugin Locations**, add the full path to `MajoSolAetherMap.dll`.
-5. Open `/xlplugins`, enable **Majo & Sol Aether Map**, and use `/aethermap`.
+1. Open `/xlsettings` in game.
+2. Go to **Experimental > Custom Plugin Repositories**.
+3. Add this URL and save the settings:
+
+   ```text
+   https://github.com/majonumo/MajoSolAetherMap/releases/latest/download/pluginmaster.json
+   ```
+
+4. Open `/xlplugins` and search for **Majo & Sol Aether Map**.
+5. Select **Install**, then use `/aethermap` to open the plugin.
+
+Dalamud will use the repository manifest to install compatible releases and offer updates when their `AssemblyVersion` increases. This is a third-party repository and has not been reviewed or endorsed by the Dalamud team.
+
+### Manual fallback
+
+If the custom repository is temporarily unavailable, download `latest.zip` from the matching [GitHub Release](https://github.com/majonumo/MajoSolAetherMap/releases), extract it to a permanent folder and add the DLL under **Experimental > Dev Plugin Locations**.
 
 Do not load the DLL directly from inside the ZIP, and do not install builds from untrusted mirrors.
 
@@ -116,15 +127,26 @@ Developed by Majo & Sol — Same party, always.
 
 La portada oficial aparece al comienzo del README. Se añadirán capturas dentro del juego únicamente después de revisar su privacidad; la lista está en [`assets/screenshots/README.md`](assets/screenshots/README.md). No se presentan capturas de interfaz inventadas o sin validar.
 
-### Instalación desde GitHub Releases
+### Instalación mediante el Custom Plugin Repository
 
 Hasta que el plugin sea aceptado en el repositorio oficial de Dalamud:
 
-1. Descargar `latest.zip` desde la [GitHub Release](https://github.com/majonumo/MajoSolAetherMap/releases) correspondiente.
-2. Extraer el archivo en una carpeta permanente.
-3. Abrir `/xlsettings` dentro del juego.
-4. En **Experimental > Dev Plugin Locations**, agregar la ruta completa de `MajoSolAetherMap.dll`.
-5. Abrir `/xlplugins`, habilitar **Majo & Sol Aether Map** y usar `/aethermap`.
+1. Abrir `/xlsettings` dentro del juego.
+2. Ir a **Experimental > Custom Plugin Repositories**.
+3. Agregar esta URL y guardar la configuración:
+
+   ```text
+   https://github.com/majonumo/MajoSolAetherMap/releases/latest/download/pluginmaster.json
+   ```
+
+4. Abrir `/xlplugins` y buscar **Majo & Sol Aether Map**.
+5. Seleccionar **Install** y luego usar `/aethermap` para abrir el plugin.
+
+Dalamud utilizará el manifiesto para instalar versiones compatibles y ofrecer actualizaciones cuando aumente su `AssemblyVersion`. Este es un repositorio de terceros que no fue revisado ni respaldado por el equipo de Dalamud.
+
+### Instalación manual alternativa
+
+Si el repositorio personalizado no estuviera disponible temporalmente, descargar `latest.zip` desde la [GitHub Release](https://github.com/majonumo/MajoSolAetherMap/releases) correspondiente, extraerlo en una carpeta permanente y agregar la DLL desde **Experimental > Dev Plugin Locations**.
 
 No cargues la DLL desde dentro del ZIP ni instales compilaciones de mirrors no confiables.
 
