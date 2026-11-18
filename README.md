@@ -85,6 +85,18 @@ For a future official release, install through `/xlplugins` after the plugin has
 - Quest NPC locations reflect authoritative game data when available. Ambiguous locations are reported and never fabricated.
 - Final Fantasy XIV and all related assets are property of SQUARE ENIX CO., LTD. No proprietary game textures are redistributed by this repository.
 
+### AI-Assisted Development
+
+**AI involvement: Copilot**
+
+This project was conceived, directed, and tested by its human developer, with substantial implementation and documentation assistance from ChatGPT and OpenAI Codex.
+
+I defined the features, made design decisions, configured the development environment, tested the plugin in FFXIV, reported bugs, and verified the final build.
+
+The Majo & Sol illustration was also AI-generated.
+
+Developed by Majo & Sol — Same party, always.
+
 ## Español
 
 ### Funcionalidades
@@ -145,6 +157,18 @@ Cuando exista una publicación oficial aprobada, la instalación recomendada ser
 - Los mapas ambiguos y ubicaciones no verificables se omiten en lugar de inventarse.
 - Final Fantasy XIV y sus recursos pertenecen a SQUARE ENIX CO., LTD.
 - Este es un proyecto comunitario no oficial, sin afiliación, respaldo ni patrocinio de Square Enix, XIVLauncher o Dalamud.
+
+### Desarrollo asistido por IA
+
+**Nivel de participación de IA: Copilot**
+
+Este proyecto nació de una idea propia y fue dirigido y probado personalmente por mí, con una participación importante de ChatGPT y OpenAI Codex en la implementación técnica y la documentación.
+
+Me encargué de definir las funcionalidades, tomar decisiones sobre el diseño, configurar el entorno de desarrollo, probar el plugin directamente dentro de Final Fantasy XIV, detectar errores, solicitar correcciones y verificar que la versión final compilara y funcionara correctamente.
+
+La ilustración de Majo y Sol utilizada en el proyecto también fue generada mediante inteligencia artificial.
+
+*Desarrollado por Majo & Sol — Same party, always.*
 
 ## Repository and distribution
 
