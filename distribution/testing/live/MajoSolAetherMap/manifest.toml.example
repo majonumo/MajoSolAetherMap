@@ -2,7 +2,7 @@
 # and replace every REQUIRED value after the public GitHub repository exists.
 [plugin]
 repository = "https://github.com/majonumo/MajoSolAetherMap.git"
-commit = "REQUIRED_RELEASE_COMMIT_SHA"
+commit = "ccf3e952547dc3259be3462627d3a2604ed235c3"
 owners = ["majonumo"]
 project_path = "src/MajoSolAetherMap"
 changelog = "Adds bilingual UI, About window, author artwork support and cross-zone progress browsing."
