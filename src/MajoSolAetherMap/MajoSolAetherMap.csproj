@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <Version>0.7.0.0</Version>
+    <AssemblyName>MajoSolAetherMap</AssemblyName>
+    <RootNamespace>MajoSolAetherMap</RootNamespace>
+
+    <Author>Majo &amp; Sol</Author>
+    <Name>Majo &amp; Sol Aether Map</Name>
+    <Punchline>Track Aether Currents and unlock flight across Eorzea.</Punchline>
+    <Description>Shows real Aether Current progress, exploration locations and quest NPCs. Includes native map flags and a passive multi-marker overlay. Open with /aethermap.</Description>
+    <Tags>aether;currents;map;flight</Tags>
+    <CategoryTags>utility;other</CategoryTags>
+    <RepoUrl>https://github.com/majonumo/MajoSolAetherMap</RepoUrl>
+    <DalamudApiLevel>15</DalamudApiLevel>
+    <ApplicableVersion>any</ApplicableVersion>
+    <AcceptsFeedback>true</AcceptsFeedback>
+    <FeedbackMessage>Please include the zone, map and steps to reproduce.</FeedbackMessage>
+  </PropertyGroup>
+  <ItemGroup Condition="Exists('$(MSBuildProjectDirectory)\..\..\assets\majo-and-sol.png')">
+    <None Include="..\..\assets\majo-and-sol.png"
+          Link="assets\majo-and-sol.png"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

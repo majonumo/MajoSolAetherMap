@@ -1,0 +1,50 @@
+# Build output
+bin/
+obj/
+artifacts/
+TestResults/
+*.zip
+*.nupkg
+*.snupkg
+
+# IDE and user state
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Local SDK/NuGet caches and research tools
+.dotnet-cli/
+.nuget-packages/
+.research/
+packages/
+
+# Local Dalamud/XIVLauncher state
+pluginConfigs/
+devPlugins/
+*.dalamud.json
+Dalamud.log
+output.log
+
+# Secrets and machine-local configuration
+.env
+.env.*
+!.env.example
+*.secrets.json
+credentials.json
+secrets.json
+appsettings.Local.json
+appsettings.Development.json
+
+# Private collaboration context
+AGENTS.md
+AGENTS.md.txt
+PROJECT_CONTEXT.md
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
