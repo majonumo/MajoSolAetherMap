@@ -1,5 +1,5 @@
-# Copy this file to DalamudPluginsD17/testing/live/MajoSolAetherMap/manifest.toml
-# and replace every REQUIRED value after the public GitHub repository exists.
+# Prepared submission template. Copy this file to
+# DalamudPluginsD17/testing/live/MajoSolAetherMap/manifest.toml only after approval.
 [plugin]
 repository = "https://github.com/majonumo/MajoSolAetherMap.git"
 commit = "ccf3e952547dc3259be3462627d3a2604ed235c3"
