@@ -62,3 +62,68 @@ The following cannot be completed safely without author input and an in-game rel
 1. Capture and privacy-review any additional repository screenshots.
 2. Insert the public release commit SHA in the prepared D17 manifest.
 3. Review the Dalamud AI Usage Policy and disclose assistance accurately in the submission PR.
+
+## Corrective quest-association audit — pre-PR
+
+Audit date: November 18, 2026
+
+This audit was performed against the installed game data for version
+`2026.11.03.0000.0000`. It does not use territory, NPC or position as evidence
+that a quest grants an Aether Current. The authoritative check is the quest's
+actual reward relation: `Quest.OtherReward` must reference
+`QuestRewardOther` row 2, named **Aether Current**.
+
+### Root cause
+
+The plugin treated every valid `AetherCurrent.Quest` reference as authoritative.
+Five active rows contain stale quest links whose referenced quests do not have
+the Aether Current reward. This caused `AetherCurrent 2818328` to display
+`Quest 70030` (**Curing What Ails**) in Thavnair even though that quest has
+`OtherReward = 0`.
+
+### Corrections
+
+| AetherCurrent | Stale quest | Correct reward quest |
+| --- | --- | --- |
+| 2818065 | 67328 — Natural Repellent | 67326 — Stolen Munitions |
+| 2818066 | 67334 — Chocobo's Last Stand | 67333 — The Hunter Becomes the Kweh |
+| 2818096 | 67365 — The Unceasing Gardener | 67364 — Hide Your Moogles |
+| 2818110 | 67437 — Search and Rescue | 67410 — Honoring the Past |
+| 2818328 | 70030 — Curing What Ails | 69793 — In Agama's Footsteps |
+
+The five resolved Thavnair missions are:
+
+- 69952 — Simple Pleasures
+- 69739 — Alchemist or Dancer
+- 70025 — Steppe Child
+- 69795 — Radiant Patrol
+- 69793 — In Agama's Footsteps
+
+All five reference `QuestRewardOther 2` (**Aether Current**).
+
+### Global validation
+
+After applying the exact ID corrections, the active data contains 150 quest
+associations: 145 direct and 5 corrected. The bidirectional validation reports:
+
+- invalid reward associations: 0;
+- duplicate/ambiguous quest associations: 0;
+- Aether Current reward quests left unassociated: 0.
+
+At plugin startup, the same validation now rejects direct links that do not
+carry the real reward, verifies every explicit correction, detects a quest
+mapped to multiple currents and reports any reward quest left without a current.
+Unresolved invalid associations fail closed and are omitted instead of being
+misclassified as exploration currents.
+
+### Verification and release gate
+
+- Release build: passed with 0 warnings and 0 errors.
+- Corrected Release DLL SHA-256:
+  `BE732C16D171F103BA2B9A8F2747E38D10B256141E9F404C5DBDB875AFF04BC4`.
+- `dotnet format --verify-no-changes`: passed.
+- Overlay renderer, windows and exploration-coordinate data were not modified.
+- Version `0.7.1.0` is the custom-repository validation candidate so the real
+  Dalamud update path can be tested in FFXIV.
+- The official Dalamud PR remains blocked until these five corrected
+  associations and their completion states are validated in FFXIV.

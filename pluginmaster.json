@@ -3,7 +3,7 @@
     "Author": "Majo & Sol",
     "Name": "Majo & Sol Aether Map",
     "InternalName": "MajoSolAetherMap",
-    "AssemblyVersion": "0.7.0.0",
+    "AssemblyVersion": "0.7.1.0",
     "Description": "Shows real Aether Current progress, exploration locations and quest NPCs. Includes native map flags and a passive multi-marker overlay. Open with /aethermap.",
     "ApplicableVersion": "any",
     "RepoUrl": "https://github.com/majonumo/MajoSolAetherMap",
@@ -28,9 +28,9 @@
     "IsHide": false,
     "IsTestingExclusive": false,
     "DownloadCount": 0,
-    "LastUpdate": 1794993115,
-    "DownloadLinkInstall": "https://github.com/majonumo/MajoSolAetherMap/releases/download/v0.7.0/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/majonumo/MajoSolAetherMap/releases/download/v0.7.0/latest.zip",
-    "DownloadLinkTesting": "https://github.com/majonumo/MajoSolAetherMap/releases/download/v0.7.0/latest.zip"
+    "LastUpdate": 1795046129,
+    "DownloadLinkInstall": "https://github.com/majonumo/MajoSolAetherMap/releases/download/v0.7.1/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/majonumo/MajoSolAetherMap/releases/download/v0.7.1/latest.zip",
+    "DownloadLinkTesting": "https://github.com/majonumo/MajoSolAetherMap/releases/download/v0.7.1/latest.zip"
   }
 ]

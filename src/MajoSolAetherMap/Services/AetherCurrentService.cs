@@ -14,11 +14,26 @@ namespace MajoSolAetherMap.Services;
 
 public sealed class AetherCurrentService : IDisposable
 {
+    private const uint AetherCurrentQuestRewardId = 2;
+
+    // AetherCurrent.Quest contains five stale links in the current game data. The replacement
+    // quests below are verified by Quest.OtherReward = 2 (QuestRewardOther "Aether Current").
+    private static readonly IReadOnlyDictionary<uint, uint> QuestCorrections =
+        new Dictionary<uint, uint>
+        {
+            [2818065] = 67326, // Natural Repellent -> Stolen Munitions
+            [2818066] = 67333, // Chocobo's Last Stand -> The Hunter Becomes the Kweh
+            [2818096] = 67364, // The Unceasing Gardener -> Hide Your Moogles
+            [2818110] = 67410, // Search and Rescue -> Honoring the Past
+            [2818328] = 69793, // Curing What Ails -> In Agama's Footsteps
+        };
+
     private readonly IDataManager dataManager;
     private readonly IClientState clientState;
     private readonly IUnlockState unlockState;
     private readonly IGameGui gameGui;
     private readonly IPluginLog log;
+    private readonly IReadOnlyDictionary<uint, Quest> questByCurrentId;
     private readonly IReadOnlyDictionary<uint, AetherCurrentLocation> locationByCurrentId;
     private readonly IReadOnlyDictionary<uint, IReadOnlyList<AetherCurrentLocation>> locationsByNpcId;
     private readonly IReadOnlyDictionary<uint, IReadOnlyList<MapOverlayMarker>> overlayTemplatesByMapId;
@@ -39,6 +54,7 @@ public sealed class AetherCurrentService : IDisposable
         this.unlockState = unlockState;
         this.gameGui = gameGui;
         this.log = log;
+        questByCurrentId = BuildQuestAssociations();
         var locationIndexes = BuildLocationIndexes();
         locationByCurrentId = locationIndexes.ByCurrentId;
         locationsByNpcId = locationIndexes.ByNpcId;
@@ -236,10 +252,13 @@ public sealed class AetherCurrentService : IDisposable
 
                     var current = currentRef.Value;
                     var isQuest = current.Quest.IsValid;
+                    Quest quest = default;
+                    if (isQuest && !questByCurrentId.TryGetValue(current.RowId, out quest))
+                        continue;
                     var kind = isQuest
                         ? AetherCurrentKind.Quest
                         : AetherCurrentKind.Exploration;
-                    var questInfo = isQuest ? CreateQuestInfo(current) : null;
+                    var questInfo = isQuest ? CreateQuestInfo(quest) : null;
                     var name = questInfo?.Name ?? $"Corriente de exploración {++explorationNumber}";
 
                     locationByCurrentId.TryGetValue(current.RowId, out var location);
@@ -303,7 +322,10 @@ public sealed class AetherCurrentService : IDisposable
                         continue;
                     var current = currentRef.Value;
                     var isQuest = current.Quest.IsValid;
-                    var questInfo = isQuest ? CreateQuestInfo(current) : null;
+                    Quest quest = default;
+                    if (isQuest && !questByCurrentId.TryGetValue(current.RowId, out quest))
+                        continue;
+                    var questInfo = isQuest ? CreateQuestInfo(quest) : null;
                     locationByCurrentId.TryGetValue(current.RowId, out var location);
                     currents.Add(new AetherCurrentInfo(
                         current.RowId,
@@ -375,7 +397,10 @@ public sealed class AetherCurrentService : IDisposable
                     continue;
                 }
 
-                var quest = CreateQuestInfo(current, false);
+                if (!questByCurrentId.TryGetValue(current.RowId, out var associatedQuest))
+                    continue;
+
+                var quest = CreateQuestInfo(associatedQuest, false);
                 if (quest.LocationStatus != QuestLocationStatus.Resolved || quest.Location is not { } questLocation)
                     continue;
 
@@ -437,14 +462,13 @@ public sealed class AetherCurrentService : IDisposable
     {
         try
         {
-            var aetherCurrentSheet = dataManager.GetExcelSheet<AetherCurrent>();
-            var explorationIds = aetherCurrentSheet
+            var activeCurrents = GetActiveCurrents();
+            var explorationIds = activeCurrents
                 .Where(current => !current.Quest.IsValid)
                 .Select(current => current.RowId)
                 .ToHashSet();
-            var questNpcIds = aetherCurrentSheet
-                .Where(current => current.Quest.IsValid)
-                .Select(current => current.Quest.Value.IssuerStart.RowId)
+            var questNpcIds = questByCurrentId.Values
+                .Select(quest => quest.IssuerStart.RowId)
                 .Where(npcId => npcId != 0)
                 .ToHashSet();
 
@@ -493,9 +517,8 @@ public sealed class AetherCurrentService : IDisposable
         }
     }
 
-    private AetherCurrentQuestInfo CreateQuestInfo(AetherCurrent current, bool readCompletion = true)
+    private AetherCurrentQuestInfo CreateQuestInfo(Quest quest, bool readCompletion = true)
     {
-        var quest = current.Quest.Value;
         var name = quest.Name.ToString();
         if (string.IsNullOrWhiteSpace(name))
             name = "Misión de Aether Current";
@@ -593,12 +616,8 @@ public sealed class AetherCurrentService : IDisposable
 
     private void LogQuestCoverage()
     {
-        var questCurrents = dataManager.GetExcelSheet<TerritoryType>()
-            .Where(territory => territory.ExVersion.RowId != 0 && territory.AetherCurrentCompFlgSet.IsValid)
-            .SelectMany(territory => territory.AetherCurrentCompFlgSet.Value.AetherCurrents)
-            .Where(current => current.IsValid && current.Value.Quest.IsValid)
-            .DistinctBy(current => current.RowId)
-            .Select(current => CreateQuestInfo(current.Value, false))
+        var questCurrents = questByCurrentId.Values
+            .Select(quest => CreateQuestInfo(quest, false))
             .ToArray();
 
         log.Information(
@@ -607,6 +626,94 @@ public sealed class AetherCurrentService : IDisposable
             questCurrents.Count(quest => quest.LocationStatus == QuestLocationStatus.Ambiguous),
             questCurrents.Count(quest => quest.LocationStatus == QuestLocationStatus.Unavailable),
             questCurrents.Length);
+    }
+
+    private AetherCurrent[] GetActiveCurrents() =>
+        dataManager.GetExcelSheet<TerritoryType>()
+            .Where(territory => territory.ExVersion.RowId != 0 && territory.AetherCurrentCompFlgSet.IsValid)
+            .SelectMany(territory => territory.AetherCurrentCompFlgSet.Value.AetherCurrents)
+            .Where(current => current.IsValid)
+            .Select(current => current.Value)
+            .DistinctBy(current => current.RowId)
+            .ToArray();
+
+    private IReadOnlyDictionary<uint, Quest> BuildQuestAssociations()
+    {
+        var questSheet = dataManager.GetExcelSheet<Quest>();
+        var activeQuestCurrents = GetActiveCurrents()
+            .Where(current => current.Quest.IsValid)
+            .ToArray();
+        var candidates = new List<(uint CurrentId, Quest Quest, bool Corrected)>();
+        var invalidCount = 0;
+
+        foreach (var current in activeQuestCurrents)
+        {
+            var directQuest = current.Quest.Value;
+            if (directQuest.OtherReward.RowId == AetherCurrentQuestRewardId)
+            {
+                candidates.Add((current.RowId, directQuest, false));
+                continue;
+            }
+
+            if (!QuestCorrections.TryGetValue(current.RowId, out var correctedQuestId) ||
+                !questSheet.TryGetRow(correctedQuestId, out var correctedQuest) ||
+                correctedQuest.OtherReward.RowId != AetherCurrentQuestRewardId)
+            {
+                invalidCount++;
+                log.Error(
+                    "AsociaciÃ³n de Aether Current invÃ¡lida: Current {CurrentId} referencia Quest {QuestId} ({QuestName}), que no concede una corriente.",
+                    current.RowId,
+                    directQuest.RowId,
+                    directQuest.Name.ToString());
+                continue;
+            }
+
+            candidates.Add((current.RowId, correctedQuest, true));
+            log.Warning(
+                "AsociaciÃ³n de Aether Current corregida: Current {CurrentId}, Quest {OldQuestId} ({OldQuestName}) -> Quest {QuestId} ({QuestName}).",
+                current.RowId,
+                directQuest.RowId,
+                directQuest.Name.ToString(),
+                correctedQuest.RowId,
+                correctedQuest.Name.ToString());
+        }
+
+        var ambiguousQuestIds = candidates
+            .GroupBy(candidate => candidate.Quest.RowId)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .ToHashSet();
+        foreach (var ambiguousQuestId in ambiguousQuestIds)
+        {
+            log.Error(
+                "AsociaciÃ³n de Aether Current ambigua: Quest {QuestId} estÃ¡ enlazada a mÃ¡s de una corriente.",
+                ambiguousQuestId);
+        }
+
+        var associations = candidates
+            .Where(candidate => !ambiguousQuestIds.Contains(candidate.Quest.RowId))
+            .ToDictionary(candidate => candidate.CurrentId, candidate => candidate.Quest);
+        var associatedQuestIds = associations.Values.Select(quest => quest.RowId).ToHashSet();
+        var unassociatedRewardQuests = questSheet
+            .Where(quest => quest.OtherReward.RowId == AetherCurrentQuestRewardId &&
+                            !associatedQuestIds.Contains(quest.RowId))
+            .ToArray();
+        foreach (var quest in unassociatedRewardQuests)
+        {
+            log.Error(
+                "MisiÃ³n con recompensa Aether Current sin asociaciÃ³n: Quest {QuestId} ({QuestName}).",
+                quest.RowId,
+                quest.Name.ToString());
+        }
+
+        log.Information(
+            "ValidaciÃ³n de asociaciones: {Valid} vÃ¡lidas, {Corrected} corregidas, {Invalid} invÃ¡lidas, {Ambiguous} ambiguas y {Unassociated} recompensas sin asociar.",
+            associations.Count,
+            candidates.Count(candidate => candidate.Corrected),
+            invalidCount,
+            ambiguousQuestIds.Count,
+            unassociatedRewardQuests.Length);
+        return associations;
     }
 
     private sealed record LocationIndexes(

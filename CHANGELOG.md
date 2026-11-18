@@ -2,6 +2,20 @@
 
 All notable changes to Majo & Sol Aether Map are documented here.
 
+## [0.7.1.0] - 2026-11-18
+
+- Corrected five stale `AetherCurrent.Quest` links by validating the actual
+  `QuestRewardOther` reward instead of inferring associations from territory,
+  NPC or position.
+- Fixed Thavnair so its quest currents are Steppe Child, Alchemist or Dancer,
+  Radiant Patrol, In Agama's Footsteps and Simple Pleasures.
+- Corrected four equivalent stale links in Heavensward zones.
+- Added startup validation for invalid, duplicate and unassociated Aether
+  Current quest rewards.
+- Kept the overlay, interface and exploration coordinates unchanged.
+- Published to the custom repository as an in-game validation candidate; the
+  official Dalamud submission remains blocked until that validation passes.
+
 ## [0.7.0.0] - 2026-11-18
 
 - Added an About window with credits, motto and creation date.
