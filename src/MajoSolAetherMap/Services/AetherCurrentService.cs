@@ -37,9 +37,13 @@ public sealed class AetherCurrentService : IDisposable
     private readonly IReadOnlyDictionary<uint, AetherCurrentLocation> locationByCurrentId;
     private readonly IReadOnlyDictionary<uint, IReadOnlyList<AetherCurrentLocation>> locationsByNpcId;
     private readonly IReadOnlyDictionary<uint, IReadOnlyList<MapOverlayMarker>> overlayTemplatesByMapId;
+    private readonly IReadOnlyDictionary<uint, MapOverlayMarker> overlayTemplatesById;
     private readonly IReadOnlyList<MapIdentity> overlayMapIdentities;
     private readonly Dictionary<uint, OverlayCacheEntry> overlayStateCache = [];
     private readonly Dictionary<uint, ZoneSnapshotCacheEntry> zoneSnapshotCache = [];
+    private readonly HashSet<uint> trackedManagedMarkerIds = [];
+    private readonly HashSet<uint> suppressedManagedMarkerIds = [];
+    private bool managedMarkerTrackingInitialized;
     private int overlayRevision;
 
     public AetherCurrentService(
@@ -60,6 +64,10 @@ public sealed class AetherCurrentService : IDisposable
         locationsByNpcId = locationIndexes.ByNpcId;
         var overlayIndexes = BuildOverlayIndexes();
         overlayTemplatesByMapId = overlayIndexes.MarkersByMapId;
+        overlayTemplatesById = overlayTemplatesByMapId.Values
+            .SelectMany(markers => markers)
+            .DistinctBy(marker => marker.Id)
+            .ToDictionary(marker => marker.Id);
         overlayMapIdentities = overlayIndexes.MapIdentities;
         AvailableZones = BuildAvailableZones();
         LogQuestCoverage();
@@ -77,6 +85,8 @@ public sealed class AetherCurrentService : IDisposable
 
     public IReadOnlyList<AetherZoneOption> AvailableZones { get; }
 
+    public int ActiveManagedMarkerCount => overlayTemplatesById.Count - suppressedManagedMarkerIds.Count;
+
     public void Dispose()
     {
         clientState.Login -= OnLogin;
@@ -90,10 +100,13 @@ public sealed class AetherCurrentService : IDisposable
         if (current.Location is not { } location)
             return false;
 
-        return gameGui.OpenMapWithMapLink(
+        var placed = gameGui.OpenMapWithMapLink(
             location.TerritoryId,
             location.MapId,
             location.WorldPosition);
+        if (placed)
+            ActivateManagedMarker(current.RowId);
+        return placed;
     }
 
     public bool PlaceNpcFlag(AetherCurrentQuestInfo quest)
@@ -104,10 +117,24 @@ public sealed class AetherCurrentService : IDisposable
             return false;
         }
 
-        return gameGui.OpenMapWithMapLink(
+        var placed = gameGui.OpenMapWithMapLink(
             location.TerritoryId,
             location.MapId,
             location.WorldPosition);
+        if (placed)
+            ActivateManagedMarker(quest.QuestId);
+        return placed;
+    }
+
+    public int ClearAllManagedMarkers()
+    {
+        var cleared = ActiveManagedMarkerCount;
+        foreach (var markerId in overlayTemplatesById.Keys)
+            suppressedManagedMarkerIds.Add(markerId);
+        trackedManagedMarkerIds.Clear();
+        InvalidateCaches();
+        log.Information("Se ocultaron {MarkerCount} marcadores gestionados por el overlay.", cleared);
+        return cleared;
     }
 
     public ZoneAetherCurrentSnapshot GetZoneSnapshot(uint territoryId)
@@ -133,14 +160,13 @@ public sealed class AetherCurrentService : IDisposable
             return cached.Markers;
 
         var currentSheet = dataManager.GetExcelSheet<AetherCurrent>();
-        var questSheet = dataManager.GetExcelSheet<Quest>();
-        var markers = templates.Select(template =>
-        {
-            var completed = template.Kind == MapOverlayMarkerKind.ExplorationCurrent
-                ? currentSheet.TryGetRow(template.Id, out var current) && unlockState.IsAetherCurrentUnlocked(current)
-                : questSheet.TryGetRow(template.Id, out var quest) && unlockState.IsQuestCompleted(quest);
-            return template with { IsCompleted = completed };
-        }).ToArray();
+        var markers = templates
+            .Where(template => !suppressedManagedMarkerIds.Contains(template.Id))
+            .Select(template => template with
+            {
+                IsCompleted = IsMarkerCompleted(template, currentSheet),
+            })
+            .ToArray();
 
         overlayStateCache[mapId] = new OverlayCacheEntry(overlayRevision, markers);
         return markers;
@@ -175,17 +201,90 @@ public sealed class AetherCurrentService : IDisposable
         return false;
     }
 
-    private void Refresh()
+    private void ActivateManagedMarker(uint markerId)
+    {
+        if (!overlayTemplatesById.TryGetValue(markerId, out var marker))
+            return;
+
+        var currentSheet = dataManager.GetExcelSheet<AetherCurrent>();
+        if (IsMarkerCompleted(marker, currentSheet))
+        {
+            trackedManagedMarkerIds.Remove(markerId);
+            if (suppressedManagedMarkerIds.Add(markerId))
+                InvalidateCaches();
+            return;
+        }
+
+        trackedManagedMarkerIds.Add(markerId);
+        if (!suppressedManagedMarkerIds.Remove(markerId))
+            return;
+
+        InvalidateCaches();
+    }
+
+    private void InitializeManagedMarkerTracking()
+    {
+        var currentSheet = dataManager.GetExcelSheet<AetherCurrent>();
+        foreach (var marker in overlayTemplatesById.Values)
+        {
+            if (!IsMarkerCompleted(marker, currentSheet))
+                trackedManagedMarkerIds.Add(marker.Id);
+        }
+
+        managedMarkerTrackingInitialized = true;
+    }
+
+    private void SuppressCompletedTrackedMarkers()
+    {
+        if (trackedManagedMarkerIds.Count == 0)
+            return;
+
+        var currentSheet = dataManager.GetExcelSheet<AetherCurrent>();
+        foreach (var markerId in trackedManagedMarkerIds.ToArray())
+        {
+            if (!overlayTemplatesById.TryGetValue(markerId, out var marker) ||
+                !IsMarkerCompleted(marker, currentSheet))
+            {
+                continue;
+            }
+
+            trackedManagedMarkerIds.Remove(markerId);
+            suppressedManagedMarkerIds.Add(markerId);
+            log.Information(
+                "Marcador gestionado {MarkerId} ocultado al completarse su objetivo.",
+                markerId);
+        }
+    }
+
+    private bool IsMarkerCompleted(
+        MapOverlayMarker marker,
+        ExcelSheet<AetherCurrent> currentSheet)
+    {
+        return currentSheet.TryGetRow(marker.AetherCurrentId, out var current) &&
+               unlockState.IsAetherCurrentUnlocked(current);
+    }
+
+    private void InvalidateCaches()
     {
         overlayRevision++;
         overlayStateCache.Clear();
         zoneSnapshotCache.Clear();
+    }
+
+    private void Refresh()
+    {
+        InvalidateCaches();
 
         if (!clientState.IsLoggedIn)
         {
             Current = ZoneAetherCurrentSnapshot.LoggedOut;
             return;
         }
+
+        if (managedMarkerTrackingInitialized)
+            SuppressCompletedTrackedMarkers();
+        else
+            InitializeManagedMarkerTracking();
 
         try
         {
@@ -387,6 +486,7 @@ public sealed class AetherCurrentService : IDisposable
                     {
                         markers.Add(new MapOverlayMarker(
                             current.RowId,
+                            current.RowId,
                             "Corriente de exploración",
                             MapOverlayMarkerKind.ExplorationCurrent,
                             false,
@@ -412,6 +512,7 @@ public sealed class AetherCurrentService : IDisposable
                 };
                 markers.Add(new MapOverlayMarker(
                     quest.QuestId,
+                    current.RowId,
                     quest.Name,
                     kind,
                     false,
@@ -805,8 +906,14 @@ public sealed class AetherCurrentService : IDisposable
 
     private void OnLogin() => Refresh();
 
-    private void OnLogout(int type, int code) =>
+    private void OnLogout(int type, int code)
+    {
+        trackedManagedMarkerIds.Clear();
+        suppressedManagedMarkerIds.Clear();
+        managedMarkerTrackingInitialized = false;
+        InvalidateCaches();
         Current = ZoneAetherCurrentSnapshot.LoggedOut;
+    }
 
     private void OnTerritoryChanged(uint territoryId) => Refresh();
 

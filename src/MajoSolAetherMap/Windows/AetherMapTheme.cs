@@ -51,15 +51,22 @@ public static class AetherMapTheme
     public static IDisposable BeginCard(
         string id,
         float height,
-        ImGuiWindowFlags flags = ImGuiWindowFlags.NoScrollbar,
+        ImGuiWindowFlags flags = ImGuiWindowFlags.None,
         float width = 0f)
     {
         ImGui.PushStyleColor(ImGuiCol.ChildBg, Card);
         ImGui.PushStyleColor(ImGuiCol.Border, Border);
         ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 9f * Scale);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(11f, 9f) * Scale);
+        ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarSize, 0f);
+        // Cards are nested child windows. Their content can exceed the inner height by a
+        // fraction of a pixel at non-integer UI scales, which gives them an invisible scroll
+        // range. NoScrollWithMouse forwards the wheel to the scrollable parent as long as
+        // NoScrollbar is not set; a zero ScrollbarSize keeps the card visually unchanged.
+        flags &= ~ImGuiWindowFlags.NoScrollbar;
+        flags |= ImGuiWindowFlags.NoScrollWithMouse;
         ImGui.BeginChild(id, new Vector2(width <= 0f ? 0f : width, height * Scale), true, flags);
-        ImGui.PopStyleVar(2);
+        ImGui.PopStyleVar(3);
         ImGui.PopStyleColor(2);
         return new ChildScope();
     }

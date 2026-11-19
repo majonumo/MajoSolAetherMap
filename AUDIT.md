@@ -127,3 +127,20 @@ misclassified as exploration currents.
   Dalamud update path can be tested in FFXIV.
 - The official Dalamud PR remains blocked until these five corrected
   associations and their completion states are validated in FFXIV.
+
+## Community-testing update — 0.7.2.0
+
+Audit date: November 19, 2026
+
+- Release build: passed with 0 warnings and 0 errors.
+- `dotnet format --verify-no-changes`: passed.
+- Package validation: passed for API 15 and assembly version `0.7.2.0`.
+- Objective-card mouse-wheel scrolling now stays on the outer list.
+- Managed overlay markers are removed through the existing unlock event and
+  authoritative Aether Current state, not by polling every frame.
+- **Clear All Markers** affects only the plugin-owned ImGui overlay and requires
+  confirmation.
+- Native `OpenMapWithMapLink` flags remain untouched because API 15 exposes no
+  selective ownership/removal operation.
+- This build is for the Majo & Sol custom repository only. No official Dalamud
+  fork, manifest or pull request is part of this publication.

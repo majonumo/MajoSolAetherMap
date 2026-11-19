@@ -2,6 +2,16 @@
 
 All notable changes to Majo & Sol Aether Map are documented here.
 
+## [0.7.2.0] - 2026-11-19
+
+- Prevented nested objective cards from consuming mouse-wheel scrolling and
+  shifting their text independently from the outer objective list.
+- Added event-driven removal of plugin-managed overlay markers when their
+  associated Aether Current is unlocked.
+- Added a confirmed **Clear All Markers** action for the plugin overlay.
+- Kept native shared map flags untouched because Dalamud API 15 does not expose
+  selective ownership or removal for `OpenMapWithMapLink` flags.
+
 ## [0.7.1.0] - 2026-11-18
 
 - Corrected five stale `AetherCurrent.Quest` links by validating the actual

@@ -11,13 +11,18 @@ public sealed class SettingsWindow : Window, IDisposable
 {
     private readonly Configuration configuration;
     private readonly MapOverlayRenderer mapOverlayRenderer;
+    private readonly AetherCurrentService aetherCurrentService;
     private IDisposable? themeScope;
 
-    public SettingsWindow(Configuration configuration, MapOverlayRenderer mapOverlayRenderer)
+    public SettingsWindow(
+        Configuration configuration,
+        MapOverlayRenderer mapOverlayRenderer,
+        AetherCurrentService aetherCurrentService)
         : base("Configuración · Aether Map##MajoSolAetherMapSettings")
     {
         this.configuration = configuration;
         this.mapOverlayRenderer = mapOverlayRenderer;
+        this.aetherCurrentService = aetherCurrentService;
         Size = new Vector2(390, 430);
         SizeCondition = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints
@@ -69,7 +74,7 @@ public sealed class SettingsWindow : Window, IDisposable
         }
         ImGui.Spacing();
 
-        using (AetherMapTheme.BeginCard("OverlaySettings", 220))
+        using (AetherMapTheme.BeginCard("OverlaySettings", 280))
         {
             ImGui.TextColored(AetherMapTheme.Gold, T("OVERLAY DEL MAPA", "MAP OVERLAY"));
             ImGui.Spacing();
@@ -93,6 +98,17 @@ public sealed class SettingsWindow : Window, IDisposable
                 configuration.MarkerOpacity = opacity / 100f;
                 configuration.Save();
             }
+
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
+            if (ImGui.Button(T("Limpiar todos los marcadores", "Clear All Markers")))
+                ImGui.OpenPopup(ClearMarkersPopupTitle);
+            ImGui.SameLine();
+            ImGui.TextColored(
+                AetherMapTheme.TextSecondary,
+                $"{aetherCurrentService.ActiveManagedMarkerCount} {T("activos", "active")}");
+            DrawClearMarkersConfirmation();
         }
 
         ImGui.Spacing();
@@ -115,6 +131,41 @@ public sealed class SettingsWindow : Window, IDisposable
 
     private string T(string spanish, string english) =>
         Localization.Text(configuration.Language, spanish, english);
+
+    private string ClearMarkersPopupTitle =>
+        $"{T("Confirmar limpieza", "Confirm marker clearing")}##ClearManagedMarkersConfirmation";
+
+    private void DrawClearMarkersConfirmation()
+    {
+        var isOpen = true;
+        if (!ImGui.BeginPopupModal(
+                ClearMarkersPopupTitle,
+                ref isOpen,
+                ImGuiWindowFlags.AlwaysAutoResize))
+        {
+            return;
+        }
+
+        ImGui.TextColored(
+            AetherMapTheme.Gold,
+            T("¿Limpiar todos los marcadores?", "Clear all markers?"));
+        ImGui.Spacing();
+        ImGui.TextWrapped(T(
+            "Se ocultarán todos los marcadores gestionados por el overlay de Majo & Sol. " +
+            "El progreso, la configuración y las banderas nativas compartidas no se modificarán.",
+            "All markers managed by the Majo & Sol overlay will be hidden. " +
+            "Progress, settings, and shared native map flags will not be changed."));
+        ImGui.Spacing();
+        if (ImGui.Button(T("Limpiar marcadores", "Clear Markers")))
+        {
+            aetherCurrentService.ClearAllManagedMarkers();
+            ImGui.CloseCurrentPopup();
+        }
+        ImGui.SameLine();
+        if (ImGui.Button(T("Cancelar", "Cancel")))
+            ImGui.CloseCurrentPopup();
+        ImGui.EndPopup();
+    }
 
     private void DrawCheckbox(string label, bool currentValue, Action<bool> setter)
     {
