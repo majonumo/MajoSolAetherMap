@@ -336,9 +336,15 @@ public sealed class MainWindow : Window, IDisposable
         {
             var rowTop = ImGui.GetCursorScreenPos();
             var right = ImGui.GetWindowPos().X + ImGui.GetWindowSize().X - 40f * AetherMapTheme.Scale;
+            var hasRemovableFlag = aetherCurrentService.HasRemovableMapFlag(current.RowId);
+            var removeLabel = T("Eliminar marcador", "Remove marker");
+            var removeWidth = ImGui.CalcTextSize(removeLabel).X + 14f * AetherMapTheme.Scale;
+            var actionsLeft = hasRemovableFlag
+                ? right - removeWidth - 5f * AetherMapTheme.Scale
+                : right;
             AetherMapTheme.IconInline(FontAwesomeIcon.Gem,
                 current.IsUnlocked ? AetherMapTheme.Completed : AetherMapTheme.Turquoise);
-            var titleWidth = MathF.Max(60f, right - ImGui.GetCursorScreenPos().X - 6f * AetherMapTheme.Scale);
+            var titleWidth = MathF.Max(60f, actionsLeft - ImGui.GetCursorScreenPos().X - 6f * AetherMapTheme.Scale);
             AetherMapTheme.TruncatedText(LocalizeCurrentName(current.Name), titleWidth,
                 current.IsUnlocked ? AetherMapTheme.TextSecondary : AetherMapTheme.Text);
             if (current.Location is { } location)
@@ -347,6 +353,13 @@ public sealed class MainWindow : Window, IDisposable
                     $"X {location.MapPosition.X:0.0}  ·  Y {location.MapPosition.Y:0.0}");
                 if (configuration.DebugMode)
                     ImGui.TextColored(AetherMapTheme.TextSecondary, $"AetherCurrent {current.RowId}");
+                if (hasRemovableFlag)
+                {
+                    ImGui.SetCursorScreenPos(new Vector2(actionsLeft, rowTop.Y + 7f * AetherMapTheme.Scale));
+                    if (ImGui.Button($"{removeLabel}##RemoveFlag{current.RowId}",
+                            new Vector2(removeWidth, 26f * AetherMapTheme.Scale)))
+                        aetherCurrentService.RemoveMapFlag(current.RowId);
+                }
                 ImGui.SetCursorScreenPos(new Vector2(right, rowTop.Y + 7f * AetherMapTheme.Scale));
                 if (AetherMapTheme.IconButton($"Flag{current.RowId}", FontAwesomeIcon.Flag,
                         T("Colocar bandera", "Place flag")))
@@ -365,10 +378,16 @@ public sealed class MainWindow : Window, IDisposable
         {
             var rowTop = ImGui.GetCursorScreenPos();
             var right = ImGui.GetWindowPos().X + ImGui.GetWindowSize().X - 40f * AetherMapTheme.Scale;
+            var hasRemovableFlag = aetherCurrentService.HasRemovableMapFlag(quest.QuestId);
+            var removeLabel = T("Eliminar marcador", "Remove marker");
+            var removeWidth = ImGui.CalcTextSize(removeLabel).X + 14f * AetherMapTheme.Scale;
+            var actionsLeft = hasRemovableFlag
+                ? right - removeWidth - 5f * AetherMapTheme.Scale
+                : right;
             var isMainScenario = quest.Type == AetherCurrentQuestType.MainScenario;
             AetherMapTheme.IconInline(isMainScenario ? FontAwesomeIcon.ExclamationCircle : FontAwesomeIcon.Scroll,
                 quest.IsCompleted ? AetherMapTheme.Completed : isMainScenario ? AetherMapTheme.Gold : AetherMapTheme.Blue);
-            var titleWidth = MathF.Max(60f, right - ImGui.GetCursorScreenPos().X - 6f * AetherMapTheme.Scale);
+            var titleWidth = MathF.Max(60f, actionsLeft - ImGui.GetCursorScreenPos().X - 6f * AetherMapTheme.Scale);
             AetherMapTheme.TruncatedText(quest.Name, titleWidth,
                 quest.IsCompleted ? AetherMapTheme.TextSecondary : AetherMapTheme.Text);
             AetherMapTheme.TruncatedText($"NPC · {quest.NpcName ?? T("No disponible", "Unavailable")}", titleWidth,
@@ -380,6 +399,13 @@ public sealed class MainWindow : Window, IDisposable
                 if (configuration.DebugMode)
                     ImGui.TextColored(AetherMapTheme.TextSecondary,
                         $"Quest {quest.QuestId} · ENpc {quest.NpcId} · {quest.LocationStatus}");
+                if (hasRemovableFlag)
+                {
+                    ImGui.SetCursorScreenPos(new Vector2(actionsLeft, rowTop.Y + 16f * AetherMapTheme.Scale));
+                    if (ImGui.Button($"{removeLabel}##RemoveNpcFlag{quest.QuestId}",
+                            new Vector2(removeWidth, 26f * AetherMapTheme.Scale)))
+                        aetherCurrentService.RemoveMapFlag(quest.QuestId);
+                }
                 ImGui.SetCursorScreenPos(new Vector2(right, rowTop.Y + 16f * AetherMapTheme.Scale));
                 if (AetherMapTheme.IconButton($"Npc{quest.QuestId}", FontAwesomeIcon.MapMarkerAlt,
                         T("Localizar NPC", "Locate NPC")))

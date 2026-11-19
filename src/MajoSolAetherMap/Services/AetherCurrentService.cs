@@ -4,6 +4,7 @@ using System.Linq;
 using System.Numerics;
 using Dalamud.Plugin.Services;
 using Dalamud.Utility;
+using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using Lumina.Excel;
 using Lumina.Excel.Sheets;
 using MajoSolAetherMap.Models;
@@ -44,6 +45,7 @@ public sealed class AetherCurrentService : IDisposable
     private readonly HashSet<uint> trackedManagedMarkerIds = [];
     private readonly HashSet<uint> suppressedManagedMarkerIds = [];
     private bool managedMarkerTrackingInitialized;
+    private NativeFlagOwnership? nativeFlagOwnership;
     private int overlayRevision;
 
     public AetherCurrentService(
@@ -85,8 +87,6 @@ public sealed class AetherCurrentService : IDisposable
 
     public IReadOnlyList<AetherZoneOption> AvailableZones { get; }
 
-    public int ActiveManagedMarkerCount => overlayTemplatesById.Count - suppressedManagedMarkerIds.Count;
-
     public void Dispose()
     {
         clientState.Login -= OnLogin;
@@ -105,7 +105,10 @@ public sealed class AetherCurrentService : IDisposable
             location.MapId,
             location.WorldPosition);
         if (placed)
+        {
             ActivateManagedMarker(current.RowId);
+            CaptureNativeFlagOwnership(current.RowId, location);
+        }
         return placed;
     }
 
@@ -122,19 +125,37 @@ public sealed class AetherCurrentService : IDisposable
             location.MapId,
             location.WorldPosition);
         if (placed)
+        {
             ActivateManagedMarker(quest.QuestId);
+            CaptureNativeFlagOwnership(quest.QuestId, location);
+        }
         return placed;
     }
 
-    public int ClearAllManagedMarkers()
+    public bool HasRemovableMapFlag(uint markerId)
     {
-        var cleared = ActiveManagedMarkerCount;
-        foreach (var markerId in overlayTemplatesById.Keys)
-            suppressedManagedMarkerIds.Add(markerId);
-        trackedManagedMarkerIds.Clear();
-        InvalidateCaches();
-        log.Information("Se ocultaron {MarkerCount} marcadores gestionados por el overlay.", cleared);
-        return cleared;
+        return nativeFlagOwnership is { MarkerId: var ownedMarkerId } &&
+               ownedMarkerId == markerId &&
+               IsOwnedNativeFlagStillActive();
+    }
+
+    public bool RemoveMapFlag(uint markerId)
+    {
+        if (!HasRemovableMapFlag(markerId))
+            return false;
+
+        unsafe
+        {
+            var agentMap = AgentMap.Instance();
+            if (agentMap is null)
+                return false;
+
+            agentMap->FlagMarkerCount = 0;
+        }
+
+        nativeFlagOwnership = null;
+        log.Information("Bandera nativa gestionada {MarkerId} eliminada.", markerId);
+        return true;
     }
 
     public ZoneAetherCurrentSnapshot GetZoneSnapshot(uint territoryId)
@@ -250,6 +271,7 @@ public sealed class AetherCurrentService : IDisposable
 
             trackedManagedMarkerIds.Remove(markerId);
             suppressedManagedMarkerIds.Add(markerId);
+            RemoveMapFlag(markerId);
             log.Information(
                 "Marcador gestionado {MarkerId} ocultado al completarse su objetivo.",
                 markerId);
@@ -269,6 +291,67 @@ public sealed class AetherCurrentService : IDisposable
         overlayRevision++;
         overlayStateCache.Clear();
         zoneSnapshotCache.Clear();
+    }
+
+    private unsafe void CaptureNativeFlagOwnership(
+        uint markerId,
+        AetherCurrentLocation expectedLocation)
+    {
+        var agentMap = AgentMap.Instance();
+        if (agentMap is null || agentMap->FlagMarkerCount != 1)
+        {
+            nativeFlagOwnership = null;
+            log.Warning(
+                "No se pudo asumir propiedad de la bandera nativa para el marcador {MarkerId}.",
+                markerId);
+            return;
+        }
+
+        ref var flag = ref agentMap->FlagMapMarkers[0];
+        var matchesRequestedFlag = flag.TerritoryId == expectedLocation.TerritoryId &&
+                                   flag.MapId == expectedLocation.MapId &&
+                                   MathF.Abs(flag.XFloat - expectedLocation.WorldPosition.X) <= 0.001f &&
+                                   MathF.Abs(flag.YFloat - expectedLocation.WorldPosition.Z) <= 0.001f;
+        if (!matchesRequestedFlag)
+        {
+            nativeFlagOwnership = null;
+            log.Warning(
+                "La bandera nativa activa no coincide con el marcador solicitado {MarkerId}; " +
+                "no se asumirá propiedad.",
+                markerId);
+            return;
+        }
+
+        nativeFlagOwnership = new NativeFlagOwnership(
+            markerId,
+            flag.TerritoryId,
+            flag.MapId,
+            flag.XFloat,
+            flag.YFloat,
+            flag.MapMarker.IconId);
+    }
+
+    private unsafe bool IsOwnedNativeFlagStillActive()
+    {
+        if (nativeFlagOwnership is not { } ownership)
+            return false;
+
+        var agentMap = AgentMap.Instance();
+        if (agentMap is null || agentMap->FlagMarkerCount != 1)
+        {
+            nativeFlagOwnership = null;
+            return false;
+        }
+
+        ref var flag = ref agentMap->FlagMapMarkers[0];
+        var stillOwned = flag.TerritoryId == ownership.TerritoryId &&
+                         flag.MapId == ownership.MapId &&
+                         flag.MapMarker.IconId == ownership.IconId &&
+                         MathF.Abs(flag.XFloat - ownership.X) <= 0.001f &&
+                         MathF.Abs(flag.YFloat - ownership.Y) <= 0.001f;
+        if (!stillOwned)
+            nativeFlagOwnership = null;
+        return stillOwned;
     }
 
     private void Refresh()
@@ -833,6 +916,14 @@ public sealed class AetherCurrentService : IDisposable
         int Revision,
         ZoneAetherCurrentSnapshot Snapshot);
 
+    private sealed record NativeFlagOwnership(
+        uint MarkerId,
+        uint TerritoryId,
+        uint MapId,
+        float X,
+        float Y,
+        uint IconId);
+
     private sealed record MapIdentity(
         uint MapId,
         string PlaceName,
@@ -910,6 +1001,7 @@ public sealed class AetherCurrentService : IDisposable
     {
         trackedManagedMarkerIds.Clear();
         suppressedManagedMarkerIds.Clear();
+        nativeFlagOwnership = null;
         managedMarkerTrackingInitialized = false;
         InvalidateCaches();
         Current = ZoneAetherCurrentSnapshot.LoggedOut;

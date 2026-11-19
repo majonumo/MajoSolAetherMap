@@ -2,6 +2,16 @@
 
 All notable changes to Majo & Sol Aether Map are documented here.
 
+## [0.7.3.0] - 2026-11-19
+
+- Replaced the global marker-clearing control with a per-objective remove action
+  beside the native flag button.
+- Added ownership validation against the live native flag territory, map, icon
+  and coordinates before removing it, so manual and third-party flags remain
+  untouched.
+- Native flags placed by the plugin are also removed when their associated
+  Aether Current is unlocked.
+
 ## [0.7.2.0] - 2026-11-19
 
 - Prevented nested objective cards from consuming mouse-wheel scrolling and

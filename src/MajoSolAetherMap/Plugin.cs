@@ -61,7 +61,7 @@ public sealed class Plugin : IDalamudPlugin
             aetherCurrentService,
             Configuration,
             Log);
-        settingsWindow = new SettingsWindow(Configuration, mapOverlayRenderer, aetherCurrentService);
+        settingsWindow = new SettingsWindow(Configuration, mapOverlayRenderer);
         aboutWindow = new AboutWindow(Configuration, TextureProvider);
         mainWindow = new MainWindow(
             aetherCurrentService,
