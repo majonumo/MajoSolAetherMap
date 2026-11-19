@@ -2,6 +2,12 @@
 
 All notable changes to Majo & Sol Aether Map are documented here.
 
+## [0.7.4.0] - 2026-11-19
+
+- Fixed native flag ownership detection by matching the integer world
+  coordinates serialized by Dalamud's `OpenMapWithMapLink`, allowing the
+  per-objective **Remove marker** button to appear after placing a flag.
+
 ## [0.7.3.0] - 2026-11-19
 
 - Replaced the global marker-clearing control with a per-objective remove action

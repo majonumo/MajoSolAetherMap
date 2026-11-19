@@ -308,10 +308,14 @@ public sealed class AetherCurrentService : IDisposable
         }
 
         ref var flag = ref agentMap->FlagMapMarkers[0];
+        // IGameGui.OpenMapWithMapLink serializes each world coordinate as
+        // `(int)coordinate * 1000`, so the native flag stores whole world units.
+        var expectedX = (int)expectedLocation.WorldPosition.X;
+        var expectedY = (int)expectedLocation.WorldPosition.Z;
         var matchesRequestedFlag = flag.TerritoryId == expectedLocation.TerritoryId &&
                                    flag.MapId == expectedLocation.MapId &&
-                                   MathF.Abs(flag.XFloat - expectedLocation.WorldPosition.X) <= 0.001f &&
-                                   MathF.Abs(flag.YFloat - expectedLocation.WorldPosition.Z) <= 0.001f;
+                                   MathF.Abs(flag.XFloat - expectedX) <= 0.001f &&
+                                   MathF.Abs(flag.YFloat - expectedY) <= 0.001f;
         if (!matchesRequestedFlag)
         {
             nativeFlagOwnership = null;
