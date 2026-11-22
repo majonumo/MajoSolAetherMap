@@ -2,7 +2,7 @@
 
 All notable changes to Majo & Sol Aether Map are documented here.
 
-## Unreleased
+## [0.7.5.0] - 2026-11-22
 
 - Added centralized UI localization with English fallback for English, Spanish,
   Brazilian Portuguese, French, German and Japanese.
