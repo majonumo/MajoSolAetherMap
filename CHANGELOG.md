@@ -2,6 +2,16 @@
 
 All notable changes to Majo & Sol Aether Map are documented here.
 
+## Unreleased
+
+- Added centralized UI localization with English fallback for English, Spanish,
+  Brazilian Portuguese, French, German and Japanese.
+- Added automatic FFXIV client-language detection plus an immediate, persistent
+  manual selector while leaving all game-provided names and data intact.
+- Added independent 30–100% window and card background opacity controls and a
+  reset action; text, icons and controls remain opaque.
+- Added backward-compatible configuration migration and technical agent guidance.
+
 ## [0.7.4.0] - 2026-11-19
 
 - Fixed native flag ownership detection by matching the integer world

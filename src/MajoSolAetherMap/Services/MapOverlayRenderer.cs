@@ -189,25 +189,24 @@ public sealed class MapOverlayRenderer
         ImGui.BeginTooltip();
         ImGui.TextUnformatted(marker.Kind == MapOverlayMarkerKind.ExplorationCurrent
             ? marker.Name
-            : marker.NpcName ?? T("NPC no disponible", "NPC unavailable"));
+            : marker.NpcName ?? T(UiText.NpcUnavailable));
         if (marker.Kind != MapOverlayMarkerKind.ExplorationCurrent)
         {
             ImGui.Separator();
             ImGui.TextWrapped(marker.Name);
             ImGui.TextDisabled(marker.Kind == MapOverlayMarkerKind.MainScenarioNpc
-                ? T("Historia principal", "Main scenario")
-                : T("Misión secundaria", "Side quest"));
+                ? T(UiText.MainScenario)
+                : T(UiText.SideQuest));
         }
 
         ImGui.TextDisabled(marker.IsCompleted
-            ? T("Completada / obtenida", "Completed / obtained")
-            : T("Pendiente", "Pending"));
+            ? T(UiText.CompletedObtained)
+            : T(UiText.Pending));
         ImGui.TextDisabled($"X {marker.Location.MapPosition.X:0.0} · Y {marker.Location.MapPosition.Y:0.0}");
         ImGui.EndTooltip();
     }
 
-    private string T(string spanish, string english) =>
-        Localization.Text(configuration.Language, spanish, english);
+    private string T(UiText key) => Localization.Text(configuration, key);
 
     private static unsafe string ReadText(AtkTextNode* node) =>
         node == null ? string.Empty : node->NodeText.ToString();

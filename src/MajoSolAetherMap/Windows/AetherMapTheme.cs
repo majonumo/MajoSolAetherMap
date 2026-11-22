@@ -21,9 +21,9 @@ public static class AetherMapTheme
 
     public static float Scale => ImGuiHelpers.GlobalScale;
 
-    public static IDisposable PushWindowStyle()
+    public static IDisposable PushWindowStyle(float windowBackgroundOpacity = 1f)
     {
-        ImGui.PushStyleColor(ImGuiCol.WindowBg, Background);
+        ImGui.PushStyleColor(ImGuiCol.WindowBg, WithOpacity(Background, windowBackgroundOpacity));
         ImGui.PushStyleColor(ImGuiCol.PopupBg, Card);
         ImGui.PushStyleColor(ImGuiCol.Text, Text);
         ImGui.PushStyleColor(ImGuiCol.TextDisabled, TextSecondary);
@@ -52,9 +52,10 @@ public static class AetherMapTheme
         string id,
         float height,
         ImGuiWindowFlags flags = ImGuiWindowFlags.None,
-        float width = 0f)
+        float width = 0f,
+        float backgroundOpacity = 1f)
     {
-        ImGui.PushStyleColor(ImGuiCol.ChildBg, Card);
+        ImGui.PushStyleColor(ImGuiCol.ChildBg, WithOpacity(Card, backgroundOpacity));
         ImGui.PushStyleColor(ImGuiCol.Border, Border);
         ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 9f * Scale);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(11f, 9f) * Scale);
@@ -149,7 +150,17 @@ public static class AetherMapTheme
             ImGui.SetTooltip(text);
     }
 
+    public static void WrappedText(string text, Vector4 color)
+    {
+        ImGui.PushStyleColor(ImGuiCol.Text, color);
+        ImGui.TextWrapped(text);
+        ImGui.PopStyleColor();
+    }
+
     public static uint ToU32(Vector4 color) => ImGui.ColorConvertFloat4ToU32(color);
+
+    public static Vector4 WithOpacity(Vector4 color, float opacity) =>
+        new(color.X, color.Y, color.Z, Math.Clamp(opacity, 0.3f, 1f));
 
     private static Vector4 Hex(byte red, byte green, byte blue, byte alpha = 255) =>
         new(red / 255f, green / 255f, blue / 255f, alpha / 255f);

@@ -54,7 +54,8 @@ public sealed class MainWindow : Window, IDisposable
         cachedLoadingImagePath = null;
     }
 
-    public override void PreDraw() => themeScope = AetherMapTheme.PushWindowStyle();
+    public override void PreDraw() =>
+        themeScope = AetherMapTheme.PushWindowStyle(configuration.WindowBackgroundOpacity);
 
     public override void PostDraw()
     {
@@ -69,14 +70,13 @@ public sealed class MainWindow : Window, IDisposable
         var snapshot = aetherCurrentService.Current;
         if (!snapshot.IsLoggedIn)
         {
-            using (AetherMapTheme.BeginCard("LoggedOut", 112))
+            using (AetherMapTheme.BeginCard("LoggedOut", 112,
+                       backgroundOpacity: configuration.CardBackgroundOpacity))
             {
                 AetherMapTheme.IconInline(FontAwesomeIcon.Compass, AetherMapTheme.Turquoise);
-                ImGui.TextColored(AetherMapTheme.Text, T("Esperando al personaje", "Waiting for character"));
+                ImGui.TextColored(AetherMapTheme.Text, T(UiText.WaitingForCharacter));
                 ImGui.Spacing();
-                ImGui.TextColored(AetherMapTheme.TextSecondary,
-                    T("Ingresá con un personaje para consultar las Aether Currents de la zona actual.",
-                        "Log in with a character to view Aether Current progress."));
+                AetherMapTheme.WrappedText(T(UiText.WaitingForCharacterHelp), AetherMapTheme.TextSecondary);
             }
             return;
         }
@@ -116,13 +116,13 @@ public sealed class MainWindow : Window, IDisposable
 
         ImGui.TableSetColumnIndex(2);
         ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 5f * AetherMapTheme.Scale);
-        if (AetherMapTheme.IconButton("About", FontAwesomeIcon.InfoCircle, T("Acerca de", "About")))
+        if (AetherMapTheme.IconButton("About", FontAwesomeIcon.InfoCircle, T(UiText.About)))
             openAbout();
         ImGui.SameLine(0, 4f * AetherMapTheme.Scale);
-        if (AetherMapTheme.IconButton("Settings", FontAwesomeIcon.Cog, T("Abrir configuración", "Open settings")))
+        if (AetherMapTheme.IconButton("Settings", FontAwesomeIcon.Cog, T(UiText.OpenSettings)))
             openSettings();
         ImGui.SameLine(0, 4f * AetherMapTheme.Scale);
-        if (AetherMapTheme.IconButton("Close", FontAwesomeIcon.Times, T("Cerrar", "Close")))
+        if (AetherMapTheme.IconButton("Close", FontAwesomeIcon.Times, T(UiText.Close)))
             IsOpen = false;
         ImGui.EndTable();
         ImGui.Separator();
@@ -130,7 +130,7 @@ public sealed class MainWindow : Window, IDisposable
 
     private void DrawZoneSelector()
     {
-        var currentLabel = T("Zona actual", "Current zone");
+        var currentLabel = T(UiText.CurrentZone);
         if (configuration.SelectedTerritoryId != 0 &&
             aetherCurrentService.AvailableZones.All(zone => zone.TerritoryId != configuration.SelectedTerritoryId))
         {
@@ -165,7 +165,8 @@ public sealed class MainWindow : Window, IDisposable
 
     private void DrawZoneSummary(ZoneAetherCurrentSnapshot snapshot)
     {
-        using (AetherMapTheme.BeginCard("ZoneSummary", 132))
+        using (AetherMapTheme.BeginCard("ZoneSummary", 132,
+                   backgroundOpacity: configuration.CardBackgroundOpacity))
         {
             DrawZoneImage(snapshot.LoadingImagePath);
             var childPosition = ImGui.GetWindowPos();
@@ -181,7 +182,7 @@ public sealed class MainWindow : Window, IDisposable
             ImGui.GetWindowDrawList().AddText(
                 circleCenter - new Vector2(percentSize.X * 0.5f, percentSize.Y * 0.75f),
                 AetherMapTheme.ToU32(AetherMapTheme.Text), percentText);
-            var countText = snapshot.TotalCount == 0 ? "Sin corrientes" : $"{snapshot.UnlockedCount}/{snapshot.TotalCount}";
+            var countText = snapshot.TotalCount == 0 ? T(UiText.NoCurrents) : $"{snapshot.UnlockedCount}/{snapshot.TotalCount}";
             var countSize = ImGui.CalcTextSize(countText);
             ImGui.GetWindowDrawList().AddText(
                 circleCenter + new Vector2(-countSize.X * 0.5f, 7f * AetherMapTheme.Scale),
@@ -193,20 +194,20 @@ public sealed class MainWindow : Window, IDisposable
             ImGui.Spacing();
             if (snapshot.TotalCount == 0)
                 ImGui.TextColored(AetherMapTheme.TextSecondary,
-                    T("Esta zona no requiere Aether Currents", "This zone does not require Aether Currents"));
+                    T(UiText.NoCurrents));
             else if (snapshot.AreAllCurrentsUnlocked)
             {
                 AetherMapTheme.IconInline(FontAwesomeIcon.CheckCircle, AetherMapTheme.Completed);
-                ImGui.TextColored(AetherMapTheme.Completed, T("Corrientes completadas", "Currents completed"));
+                ImGui.TextColored(AetherMapTheme.Completed, T(UiText.CurrentsCompleted));
             }
             else
             {
-                ImGui.TextColored(AetherMapTheme.TextSecondary, T("Objetivos pendientes", "Pending objectives"));
+                ImGui.TextColored(AetherMapTheme.TextSecondary, T(UiText.PendingObjectives));
                 ImGui.SameLine();
                 ImGui.TextColored(AetherMapTheme.Gold, snapshot.PendingCount.ToString());
             }
             if (snapshot.IsFlightUnlocked == true)
-                ImGui.TextColored(AetherMapTheme.Completed, T("Vuelo desbloqueado", "Flight unlocked"));
+                ImGui.TextColored(AetherMapTheme.Completed, T(UiText.FlightUnlocked));
         }
     }
 
@@ -222,10 +223,11 @@ public sealed class MainWindow : Window, IDisposable
         var max = min + ImGui.GetWindowSize();
         var drawList = ImGui.GetWindowDrawList();
         drawList.AddImage(wrap.Handle, min, max, Vector2.Zero, Vector2.One,
-            AetherMapTheme.ToU32(new Vector4(1f, 1f, 1f, 0.28f)));
+            AetherMapTheme.ToU32(new Vector4(1f, 1f, 1f, 0.28f * configuration.CardBackgroundOpacity)));
         drawList.AddRectFilled(min, max,
             AetherMapTheme.ToU32(new Vector4(AetherMapTheme.Background.X, AetherMapTheme.Background.Y,
-                AetherMapTheme.Background.Z, 0.56f)), 9f * AetherMapTheme.Scale);
+                AetherMapTheme.Background.Z, 0.56f * configuration.CardBackgroundOpacity)),
+            9f * AetherMapTheme.Scale);
     }
 
     private ISharedImmediateTexture? GetZoneTexture(string? path)
@@ -243,10 +245,10 @@ public sealed class MainWindow : Window, IDisposable
     {
         var categories = new List<(string Id, FontAwesomeIcon Icon, string Label, int Unlocked, int Total)>(2);
         if (snapshot.ExplorationCount > 0)
-            categories.Add(("ExplorationProgress", FontAwesomeIcon.Gem, T("EXPLORACIÓN", "EXPLORATION"),
+            categories.Add(("ExplorationProgress", FontAwesomeIcon.Gem, T(UiText.Exploration),
                 snapshot.ExplorationUnlockedCount, snapshot.ExplorationCount));
         if (snapshot.QuestCount > 0)
-            categories.Add(("QuestProgress", FontAwesomeIcon.Scroll, T("MISIONES", "QUESTS"),
+            categories.Add(("QuestProgress", FontAwesomeIcon.Scroll, T(UiText.Quests),
                 snapshot.QuestUnlockedCount, snapshot.QuestCount));
         if (categories.Count == 0)
             return;
@@ -259,7 +261,8 @@ public sealed class MainWindow : Window, IDisposable
             if (index > 0)
                 ImGui.SameLine();
             var category = categories[index];
-            using (AetherMapTheme.BeginCard(category.Id, 70, width: width))
+            using (AetherMapTheme.BeginCard(category.Id, 70, width: width,
+                       backgroundOpacity: configuration.CardBackgroundOpacity))
             {
                 AetherMapTheme.IconInline(category.Icon, AetherMapTheme.Turquoise);
                 ImGui.TextColored(AetherMapTheme.TextSecondary, category.Label);
@@ -271,13 +274,14 @@ public sealed class MainWindow : Window, IDisposable
 
     private void DrawObjectives(ZoneAetherCurrentSnapshot snapshot)
     {
-        ImGui.TextColored(AetherMapTheme.TextSecondary, T("OBJETIVOS", "OBJECTIVES"));
+        ImGui.TextColored(AetherMapTheme.TextSecondary, T(UiText.Objectives));
         if (snapshot.TotalCount > 0)
         {
             ImGui.SameLine();
             ImGui.TextColored(AetherMapTheme.Gold, snapshot.PendingCount.ToString());
         }
-        ImGui.PushStyleColor(ImGuiCol.ChildBg, AetherMapTheme.Background);
+        ImGui.PushStyleColor(ImGuiCol.ChildBg,
+            AetherMapTheme.WithOpacity(AetherMapTheme.Background, configuration.WindowBackgroundOpacity));
         ImGui.BeginChild("ObjectiveScroll", Vector2.Zero, false, ImGuiWindowFlags.None);
         ImGui.PopStyleColor();
 
@@ -285,7 +289,7 @@ public sealed class MainWindow : Window, IDisposable
         {
             ImGui.Spacing();
             ImGui.TextColored(AetherMapTheme.TextSecondary,
-                T("No hay objetivos para mostrar en esta zona.", "There are no objectives in this zone."));
+                T(UiText.NoObjectives));
             ImGui.EndChild();
             return;
         }
@@ -301,7 +305,7 @@ public sealed class MainWindow : Window, IDisposable
 
         if (pendingCurrents.Length + pendingQuests.Length > 0)
         {
-            ImGui.TextColored(AetherMapTheme.Turquoise, T("PENDIENTES", "PENDING"));
+            ImGui.TextColored(AetherMapTheme.Turquoise, T(UiText.Pending));
             foreach (var current in pendingCurrents)
                 DrawCurrentRow(current);
             foreach (var quest in pendingQuests)
@@ -311,14 +315,14 @@ public sealed class MainWindow : Window, IDisposable
         {
             AetherMapTheme.IconInline(FontAwesomeIcon.CheckCircle, AetherMapTheme.Completed);
             ImGui.TextColored(AetherMapTheme.Completed,
-                T("Todos los objetivos están completados", "All objectives are complete"));
+                T(UiText.AllObjectivesComplete));
         }
 
         var completedCount = completedCurrents.Length + completedQuests.Length;
         if (completedCount > 0)
         {
             ImGui.Spacing();
-            if (ImGui.CollapsingHeader($"{T("COMPLETADOS", "COMPLETED")} ({completedCount})##CompletedObjectives"))
+            if (ImGui.CollapsingHeader($"{T(UiText.Completed)} ({completedCount})##CompletedObjectives"))
             {
                 foreach (var current in completedCurrents)
                     DrawCurrentRow(current);
@@ -332,12 +336,13 @@ public sealed class MainWindow : Window, IDisposable
     private void DrawCurrentRow(AetherCurrentInfo current)
     {
         var height = 58f + (configuration.DebugMode ? 17f : 0f);
-        using (AetherMapTheme.BeginCard($"Current{current.RowId}", height))
+        using (AetherMapTheme.BeginCard($"Current{current.RowId}", height,
+                   backgroundOpacity: configuration.CardBackgroundOpacity))
         {
             var rowTop = ImGui.GetCursorScreenPos();
             var right = ImGui.GetWindowPos().X + ImGui.GetWindowSize().X - 40f * AetherMapTheme.Scale;
             var hasRemovableFlag = aetherCurrentService.HasRemovableMapFlag(current.RowId);
-            var removeLabel = T("Eliminar marcador", "Remove marker");
+            var removeLabel = T(UiText.RemoveMarker);
             var removeWidth = ImGui.CalcTextSize(removeLabel).X + 14f * AetherMapTheme.Scale;
             var actionsLeft = hasRemovableFlag
                 ? right - removeWidth - 5f * AetherMapTheme.Scale
@@ -362,7 +367,7 @@ public sealed class MainWindow : Window, IDisposable
                 }
                 ImGui.SetCursorScreenPos(new Vector2(right, rowTop.Y + 7f * AetherMapTheme.Scale));
                 if (AetherMapTheme.IconButton($"Flag{current.RowId}", FontAwesomeIcon.Flag,
-                        T("Colocar bandera", "Place flag")))
+                        T(UiText.PlaceFlag)))
                     aetherCurrentService.PlaceMapFlag(current);
             }
             else if (configuration.DebugMode)
@@ -374,12 +379,13 @@ public sealed class MainWindow : Window, IDisposable
     private void DrawQuestRow(AetherCurrentQuestInfo quest)
     {
         var height = 76f + (configuration.DebugMode ? 17f : 0f);
-        using (AetherMapTheme.BeginCard($"Quest{quest.QuestId}", height))
+        using (AetherMapTheme.BeginCard($"Quest{quest.QuestId}", height,
+                   backgroundOpacity: configuration.CardBackgroundOpacity))
         {
             var rowTop = ImGui.GetCursorScreenPos();
             var right = ImGui.GetWindowPos().X + ImGui.GetWindowSize().X - 40f * AetherMapTheme.Scale;
             var hasRemovableFlag = aetherCurrentService.HasRemovableMapFlag(quest.QuestId);
-            var removeLabel = T("Eliminar marcador", "Remove marker");
+            var removeLabel = T(UiText.RemoveMarker);
             var removeWidth = ImGui.CalcTextSize(removeLabel).X + 14f * AetherMapTheme.Scale;
             var actionsLeft = hasRemovableFlag
                 ? right - removeWidth - 5f * AetherMapTheme.Scale
@@ -390,7 +396,7 @@ public sealed class MainWindow : Window, IDisposable
             var titleWidth = MathF.Max(60f, actionsLeft - ImGui.GetCursorScreenPos().X - 6f * AetherMapTheme.Scale);
             AetherMapTheme.TruncatedText(quest.Name, titleWidth,
                 quest.IsCompleted ? AetherMapTheme.TextSecondary : AetherMapTheme.Text);
-            AetherMapTheme.TruncatedText($"NPC · {quest.NpcName ?? T("No disponible", "Unavailable")}", titleWidth,
+            AetherMapTheme.TruncatedText($"NPC · {quest.NpcName ?? T(UiText.Unavailable)}", titleWidth,
                 AetherMapTheme.TextSecondary);
             if (quest.LocationStatus == QuestLocationStatus.Resolved && quest.Location is { } location)
             {
@@ -408,14 +414,14 @@ public sealed class MainWindow : Window, IDisposable
                 }
                 ImGui.SetCursorScreenPos(new Vector2(right, rowTop.Y + 16f * AetherMapTheme.Scale));
                 if (AetherMapTheme.IconButton($"Npc{quest.QuestId}", FontAwesomeIcon.MapMarkerAlt,
-                        T("Localizar NPC", "Locate NPC")))
+                        T(UiText.LocateNpc)))
                     aetherCurrentService.PlaceNpcFlag(quest);
             }
             else
             {
                 ImGui.TextColored(AetherMapTheme.Gold, quest.LocationStatus == QuestLocationStatus.Ambiguous
-                    ? T("Ubicación ambigua", "Ambiguous location")
-                    : T("Ubicación no disponible", "Location unavailable"));
+                    ? T(UiText.AmbiguousLocation)
+                    : T(UiText.LocationUnavailable));
                 if (configuration.DebugMode)
                     ImGui.TextColored(AetherMapTheme.TextSecondary,
                         $"Quest {quest.QuestId} · ENpc {quest.NpcId} · {quest.LocationStatus}");
@@ -424,12 +430,10 @@ public sealed class MainWindow : Window, IDisposable
         ImGui.Spacing();
     }
 
-    private string T(string spanish, string english) =>
-        Localization.Text(configuration.Language, spanish, english);
+    private string T(UiText key) => Localization.Text(configuration, key);
 
-    private string LocalizeCurrentName(string name) =>
-        configuration.Language == InterfaceLanguage.English &&
-        name.StartsWith("Corriente de exploración", StringComparison.Ordinal)
-            ? name.Replace("Corriente de exploración", "Exploration Current", StringComparison.Ordinal)
-            : name;
+    // Exploration labels are generated by the plugin; Lumina-provided names stay untouched.
+    private string LocalizeCurrentName(string name) => name.StartsWith("Corriente de exploración", StringComparison.Ordinal)
+        ? $"{T(UiText.Exploration)} {name["Corriente de exploración".Length..].Trim()}"
+        : name;
 }

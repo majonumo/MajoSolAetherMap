@@ -50,6 +50,8 @@ public sealed class Plugin : IDalamudPlugin
     public Plugin()
     {
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+        if (Configuration.Upgrade())
+            Configuration.Save();
         aetherCurrentService = new AetherCurrentService(
             DataManager,
             ClientState,

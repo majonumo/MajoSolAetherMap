@@ -39,7 +39,11 @@ public sealed class AboutWindow : Window, IDisposable
     {
     }
 
-    public override void PreDraw() => themeScope = AetherMapTheme.PushWindowStyle();
+    public override void PreDraw()
+    {
+        WindowName = $"{T(UiText.About)} · Majo & Sol Aether Map##MajoSolAetherMapAbout";
+        themeScope = AetherMapTheme.PushWindowStyle(configuration.WindowBackgroundOpacity);
+    }
 
     public override void PostDraw()
     {
@@ -57,18 +61,16 @@ public sealed class AboutWindow : Window, IDisposable
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
-        ImGui.TextColored(AetherMapTheme.Text, "Developed by Majo & Sol");
+        ImGui.TextColored(AetherMapTheme.Text, T(UiText.DevelopedBy));
         ImGui.TextColored(AetherMapTheme.TextSecondary,
-            T("Creado el 18 de noviembre de 2026", "Created on November 18, 2026"));
+            T(UiText.CreatedOn));
         ImGui.TextColored(AetherMapTheme.TextSecondary,
-            $"Version {typeof(Plugin).Assembly.GetName().Version?.ToString(3) ?? "0.7.0"}");
+            $"{T(UiText.VersionLabel)} {typeof(Plugin).Assembly.GetName().Version?.ToString(3) ?? "0.7.0"}");
         ImGui.Spacing();
-        ImGui.TextWrapped(T(
-            "Una guía compacta para encontrar Aether Currents, seguir misiones y desbloquear el vuelo.",
-            "A compact guide for finding Aether Currents, tracking quests and unlocking flight."));
+        ImGui.TextWrapped(T(UiText.PluginDescription));
         ImGui.Spacing();
         ImGui.TextColored(AetherMapTheme.TextSecondary,
-            T("Código original bajo licencia MIT.", "Original code licensed under the MIT License."));
+            T(UiText.License));
         ImGui.TextColored(AetherMapTheme.TextSecondary,
             "Final Fantasy XIV © SQUARE ENIX CO., LTD.");
     }
@@ -89,7 +91,8 @@ public sealed class AboutWindow : Window, IDisposable
             }
         }
 
-        using (AetherMapTheme.BeginCard("AuthorsFallback", 150))
+        using (AetherMapTheme.BeginCard("AuthorsFallback", 150,
+                   backgroundOpacity: configuration.CardBackgroundOpacity))
         {
             ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 38f * AetherMapTheme.Scale);
             AetherMapTheme.IconInline(FontAwesomeIcon.Compass, AetherMapTheme.Turquoise);
@@ -97,6 +100,5 @@ public sealed class AboutWindow : Window, IDisposable
         }
     }
 
-    private string T(string spanish, string english) =>
-        Localization.Text(configuration.Language, spanish, english);
+    private string T(UiText key) => Localization.Text(configuration, key);
 }
