@@ -16,6 +16,7 @@ namespace MajoSolAetherMap.Services;
 public sealed class AetherCurrentService : IDisposable
 {
     private const uint AetherCurrentQuestRewardId = 2;
+    private const long ProgressPollIntervalMilliseconds = 1000;
 
     // AetherCurrent.Quest contains five stale links in the current game data. The replacement
     // quests below are verified by Quest.OtherReward = 2 (QuestRewardOther "Aether Current").
@@ -32,9 +33,11 @@ public sealed class AetherCurrentService : IDisposable
     private readonly IDataManager dataManager;
     private readonly IClientState clientState;
     private readonly IUnlockState unlockState;
+    private readonly IFramework framework;
     private readonly IGameGui gameGui;
     private readonly IPluginLog log;
     private readonly IReadOnlyDictionary<uint, Quest> questByCurrentId;
+    private readonly IReadOnlyList<AetherCurrent> activeCurrents;
     private readonly IReadOnlyDictionary<uint, AetherCurrentLocation> locationByCurrentId;
     private readonly IReadOnlyDictionary<uint, IReadOnlyList<AetherCurrentLocation>> locationsByNpcId;
     private readonly IReadOnlyDictionary<uint, IReadOnlyList<MapOverlayMarker>> overlayTemplatesByMapId;
@@ -42,25 +45,30 @@ public sealed class AetherCurrentService : IDisposable
     private readonly IReadOnlyList<MapIdentity> overlayMapIdentities;
     private readonly Dictionary<uint, OverlayCacheEntry> overlayStateCache = [];
     private readonly Dictionary<uint, ZoneSnapshotCacheEntry> zoneSnapshotCache = [];
+    private readonly Dictionary<uint, ObjectiveProgressState> watchedProgress = [];
     private readonly HashSet<uint> trackedManagedMarkerIds = [];
     private readonly HashSet<uint> suppressedManagedMarkerIds = [];
     private bool managedMarkerTrackingInitialized;
     private NativeFlagOwnership? nativeFlagOwnership;
     private int overlayRevision;
+    private long nextProgressPollTick;
 
     public AetherCurrentService(
         IDataManager dataManager,
         IClientState clientState,
         IUnlockState unlockState,
+        IFramework framework,
         IGameGui gameGui,
         IPluginLog log)
     {
         this.dataManager = dataManager;
         this.clientState = clientState;
         this.unlockState = unlockState;
+        this.framework = framework;
         this.gameGui = gameGui;
         this.log = log;
         questByCurrentId = BuildQuestAssociations();
+        activeCurrents = GetActiveCurrents();
         var locationIndexes = BuildLocationIndexes();
         locationByCurrentId = locationIndexes.ByCurrentId;
         locationsByNpcId = locationIndexes.ByNpcId;
@@ -78,8 +86,10 @@ public sealed class AetherCurrentService : IDisposable
         clientState.Logout += OnLogout;
         clientState.TerritoryChanged += OnTerritoryChanged;
         unlockState.Unlock += OnUnlock;
+        framework.Update += OnFrameworkUpdate;
 
         Refresh();
+        ResetProgressWatch();
     }
 
     public ZoneAetherCurrentSnapshot Current { get; private set; } =
@@ -93,6 +103,7 @@ public sealed class AetherCurrentService : IDisposable
         clientState.Logout -= OnLogout;
         clientState.TerritoryChanged -= OnTerritoryChanged;
         unlockState.Unlock -= OnUnlock;
+        framework.Update -= OnFrameworkUpdate;
     }
 
     public bool PlaceMapFlag(AetherCurrentInfo current)
@@ -291,6 +302,46 @@ public sealed class AetherCurrentService : IDisposable
         overlayRevision++;
         overlayStateCache.Clear();
         zoneSnapshotCache.Clear();
+    }
+
+    private void ResetProgressWatch()
+    {
+        watchedProgress.Clear();
+        if (!clientState.IsLoggedIn)
+            return;
+
+        foreach (var current in activeCurrents)
+        {
+            var state = ReadProgressState(current);
+            if (!state.IsSettled)
+                watchedProgress[current.RowId] = state;
+        }
+    }
+
+    private bool HasWatchedProgressChanged()
+    {
+        if (watchedProgress.Count == 0)
+            return false;
+
+        var currentSheet = dataManager.GetExcelSheet<AetherCurrent>();
+        foreach (var (currentId, previousState) in watchedProgress)
+        {
+            if (!currentSheet.TryGetRow(currentId, out var current))
+                continue;
+
+            if (ReadProgressState(current) != previousState)
+                return true;
+        }
+
+        return false;
+    }
+
+    private ObjectiveProgressState ReadProgressState(AetherCurrent current)
+    {
+        var isCurrentUnlocked = unlockState.IsAetherCurrentUnlocked(current);
+        var isQuestCompleted = !questByCurrentId.TryGetValue(current.RowId, out var quest) ||
+                               unlockState.IsQuestCompleted(quest);
+        return new ObjectiveProgressState(isCurrentUnlocked, isQuestCompleted);
     }
 
     private unsafe void CaptureNativeFlagOwnership(
@@ -920,6 +971,13 @@ public sealed class AetherCurrentService : IDisposable
         int Revision,
         ZoneAetherCurrentSnapshot Snapshot);
 
+    private readonly record struct ObjectiveProgressState(
+        bool IsCurrentUnlocked,
+        bool IsQuestCompleted)
+    {
+        public bool IsSettled => IsCurrentUnlocked && IsQuestCompleted;
+    }
+
     private sealed record NativeFlagOwnership(
         uint MarkerId,
         uint TerritoryId,
@@ -999,7 +1057,12 @@ public sealed class AetherCurrentService : IDisposable
         return dataManager.FileExists(standardPath) ? standardPath : null;
     }
 
-    private void OnLogin() => Refresh();
+    private void OnLogin()
+    {
+        Refresh();
+        ResetProgressWatch();
+        nextProgressPollTick = Environment.TickCount64 + ProgressPollIntervalMilliseconds;
+    }
 
     private void OnLogout(int type, int code)
     {
@@ -1007,13 +1070,40 @@ public sealed class AetherCurrentService : IDisposable
         suppressedManagedMarkerIds.Clear();
         nativeFlagOwnership = null;
         managedMarkerTrackingInitialized = false;
+        watchedProgress.Clear();
+        nextProgressPollTick = 0;
         InvalidateCaches();
         Current = ZoneAetherCurrentSnapshot.LoggedOut;
     }
 
     private void OnTerritoryChanged(uint territoryId) => Refresh();
 
-    private void OnUnlock(RowRef rowRef) => Refresh();
+    private void OnUnlock(RowRef rowRef)
+    {
+        Refresh();
+        // Capture the post-event state when available. If Dalamud raised the event
+        // before its unlock/quest state settled, the periodic check will detect the
+        // transition on a later framework tick and refresh once more.
+        ResetProgressWatch();
+        nextProgressPollTick = Environment.TickCount64 + ProgressPollIntervalMilliseconds;
+    }
+
+    private void OnFrameworkUpdate(IFramework _)
+    {
+        if (!clientState.IsLoggedIn)
+            return;
+
+        var now = Environment.TickCount64;
+        if (now < nextProgressPollTick)
+            return;
+
+        nextProgressPollTick = now + ProgressPollIntervalMilliseconds;
+        if (!HasWatchedProgressChanged())
+            return;
+
+        Refresh();
+        ResetProgressWatch();
+    }
 }
 
 #pragma warning restore Dalamud001

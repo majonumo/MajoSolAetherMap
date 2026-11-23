@@ -31,6 +31,9 @@ public sealed class Plugin : IDalamudPlugin
     internal static IGameGui GameGui { get; private set; } = null!;
 
     [PluginService]
+    internal static IFramework Framework { get; private set; } = null!;
+
+    [PluginService]
     internal static ITextureProvider TextureProvider { get; private set; } = null!;
 
 #pragma warning disable Dalamud001
@@ -56,6 +59,7 @@ public sealed class Plugin : IDalamudPlugin
             DataManager,
             ClientState,
             UnlockState,
+            Framework,
             GameGui,
             Log);
         mapOverlayRenderer = new MapOverlayRenderer(

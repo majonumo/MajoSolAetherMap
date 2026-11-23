@@ -2,6 +2,14 @@
 
 All notable changes to Majo & Sol Aether Map are documented here.
 
+## Unreleased
+
+- Fixed live progress becoming stale while the plugin remained open by retaining
+  the immediate unlock-event refresh and adding a throttled one-second check of
+  only unresolved Aether Current and quest states.
+- Progress changes now invalidate current/selected-zone snapshots, update cards
+  and counters, and run the existing managed-marker and native-flag cleanup.
+
 ## [0.7.5.0] - 2026-11-22
 
 - Added centralized UI localization with English fallback for English, Spanish,
