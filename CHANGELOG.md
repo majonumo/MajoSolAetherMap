@@ -2,7 +2,7 @@
 
 All notable changes to Majo & Sol Aether Map are documented here.
 
-## Unreleased
+## [0.7.6.0] - 2026-11-23
 
 - Fixed live progress becoming stale while the plugin remained open by retaining
   the immediate unlock-event refresh and adding a throttled one-second check of
